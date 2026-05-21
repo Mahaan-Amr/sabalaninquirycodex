@@ -37,7 +37,7 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
             className="rounded-md border border-white/10 px-3 py-2 text-slate-200 hover:border-teal-300"
             href="/admin/import"
           >
-            CSV
+            اکسل/CSV
           </Link>
           <form action={logoutAction}>
             <button className="inline-flex items-center gap-2 rounded-md border border-red-400/20 px-3 py-2 text-red-100 hover:border-red-300">

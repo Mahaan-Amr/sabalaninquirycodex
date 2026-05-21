@@ -4,7 +4,13 @@ import { userLogoutAction } from "@/app/actions";
 import { LoginForm } from "@/app/login/LoginForm";
 import { prisma } from "@/lib/prisma";
 import { getUserSession } from "@/lib/auth";
-import { formatPersianDateTime, formatToman, toSafeInt } from "@/lib/format";
+import {
+  displayText,
+  formatDiscountPercent,
+  formatOptionalToman,
+  formatPersianDateTime,
+  toSafeInt,
+} from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +69,7 @@ export default async function Home({ searchParams }: HomeProps) {
         query
           ? {
               OR: [
+                { rowNumber: { contains: query } },
                 { name: { contains: query } },
                 { description: { contains: query } },
               ],
@@ -72,7 +79,7 @@ export default async function Home({ searchParams }: HomeProps) {
         maxPrice !== undefined ? { finalPrice: { lte: maxPrice } } : {},
       ],
     },
-    orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
+    orderBy: [{ rowNumber: "asc" }, { name: "asc" }],
     take: 50,
   });
 
@@ -80,26 +87,28 @@ export default async function Home({ searchParams }: HomeProps) {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-      <header className="mb-8 flex items-center justify-between gap-4">
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-teal-200/80">سامانه استعلام قیمت</p>
           <h1 className="mt-2 text-2xl font-bold text-white sm:text-4xl">
             استعلام قیمت سبلان
           </h1>
         </div>
-        <Link
-          href="/admin"
-          className="rounded-md border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:border-teal-300/60 hover:text-white"
-        >
-          ورود مدیر
-        </Link>
-        <form action={userLogoutAction}>
-          <button className="inline-flex items-center gap-2 rounded-md border border-red-400/20 px-3 py-2 text-sm text-red-100 hover:border-red-300">
-            <span>{session.username}</span>
-            <LogOut className="size-4" />
-            خروج
-          </button>
-        </form>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin"
+            className="rounded-md border border-white/10 px-3 py-2 text-sm text-slate-200 transition hover:border-teal-300/60 hover:text-white"
+          >
+            ورود مدیر
+          </Link>
+          <form action={userLogoutAction}>
+            <button className="inline-flex items-center gap-2 rounded-md border border-red-400/20 px-3 py-2 text-sm text-red-100 hover:border-red-300">
+              <span>{session.username}</span>
+              <LogOut className="size-4" />
+              خروج
+            </button>
+          </form>
+        </div>
       </header>
 
       <section className="mb-6 rounded-lg border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
@@ -110,7 +119,7 @@ export default async function Home({ searchParams }: HomeProps) {
             <input
               name="q"
               defaultValue={query}
-              placeholder="نام یا توضیحات محصول را جستجو کنید..."
+              placeholder="ردیف، نام یا توضیحات محصول را جستجو کنید..."
               className="h-12 w-full rounded-md border border-white/10 bg-slate-950/70 pr-10 pl-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300"
             />
           </label>
@@ -139,7 +148,7 @@ export default async function Home({ searchParams }: HomeProps) {
           <span>
             {hasFilters
               ? `${products.length.toLocaleString("fa-IR")} نتیجه پیدا شد`
-              : "برای شروع، نام محصول یا بازه قیمت را وارد کنید"}
+              : "برای شروع، ردیف، نام محصول یا بازه قیمت را وارد کنید"}
           </span>
           {hasFilters ? (
             <Link href="/" className="text-teal-200 hover:text-teal-100">
@@ -155,21 +164,37 @@ export default async function Home({ searchParams }: HomeProps) {
                 key={product.id}
                 className="rounded-lg border border-white/10 bg-slate-950/55 p-4"
               >
-                <h2 className="text-lg font-bold text-white">{product.name}</h2>
-                <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-300">
-                  {product.description}
-                </p>
-                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-teal-100">ردیف {product.rowNumber}</p>
+                    <h2 className="mt-1 text-lg font-bold text-white">{product.name}</h2>
+                  </div>
+                  <div className="text-sm text-slate-300">
+                    امکان تخفیف: {displayText(product.discountAvailability)}
+                  </div>
+                </div>
+                {product.description ? (
+                  <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-300">
+                    {product.description}
+                  </p>
+                ) : null}
+                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
                   <div className="rounded-md bg-white/[0.04] p-3">
-                    <span className="block text-slate-400">قیمت لیست</span>
+                    <span className="block text-slate-400">قیمت کف</span>
                     <strong className="mt-1 block text-slate-100">
-                      {formatToman(product.listPrice)}
+                      {formatOptionalToman(product.listPrice)}
                     </strong>
                   </div>
                   <div className="rounded-md bg-teal-400/10 p-3">
-                    <span className="block text-teal-100/80">قیمت نهایی</span>
+                    <span className="block text-teal-100/80">قیمت اعلامی</span>
                     <strong className="mt-1 block text-teal-100">
-                      {formatToman(product.finalPrice)}
+                      {formatOptionalToman(product.finalPrice)}
+                    </strong>
+                  </div>
+                  <div className="rounded-md bg-white/[0.04] p-3">
+                    <span className="block text-slate-400">اخرین درصد تخفیف</span>
+                    <strong className="mt-1 block text-slate-100">
+                      {formatDiscountPercent(product.lastDiscountPercent)}
                     </strong>
                   </div>
                 </div>

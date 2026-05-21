@@ -1,16 +1,54 @@
 import { z } from "zod";
+import { normalizeNumericText } from "@/lib/format";
+
+function emptyToNull(value: unknown) {
+  return typeof value === "string" && value.trim() === "" ? null : value;
+}
+
+function optionalIntField(message: string) {
+  return z.preprocess(
+    (value) => {
+      const normalized = emptyToNull(value);
+      if (normalized === null || normalized === undefined) {
+        return null;
+      }
+
+      return typeof normalized === "string" ? normalizeNumericText(normalized) : normalized;
+    },
+    z.coerce
+      .number({ message })
+      .int(message)
+      .nonnegative(message)
+      .nullable(),
+  );
+}
+
+function optionalPercentField() {
+  return z.preprocess(
+    (value) => {
+      const normalized = emptyToNull(value);
+      if (normalized === null || normalized === undefined) {
+        return null;
+      }
+
+      return typeof normalized === "string" ? normalizeNumericText(normalized) : normalized;
+    },
+    z.coerce
+      .number({ message: "درصد تخفیف باید عددی بین ۰ تا ۱۰۰ باشد." })
+      .min(0, "درصد تخفیف باید عددی بین ۰ تا ۱۰۰ باشد.")
+      .max(100, "درصد تخفیف باید عددی بین ۰ تا ۱۰۰ باشد.")
+      .nullable(),
+  );
+}
 
 export const productSchema = z.object({
-  name: z.string().trim().min(1, "نام محصول الزامی است."),
-  description: z.string().trim().min(1, "توضیحات محصول الزامی است."),
-  listPrice: z.coerce
-    .number({ message: "قیمت لیست باید عدد باشد." })
-    .int("قیمت لیست باید عدد صحیح باشد.")
-    .nonnegative("قیمت لیست نمی‌تواند منفی باشد."),
-  finalPrice: z.coerce
-    .number({ message: "قیمت نهایی باید عدد باشد." })
-    .int("قیمت نهایی باید عدد صحیح باشد.")
-    .nonnegative("قیمت نهایی نمی‌تواند منفی باشد."),
+  rowNumber: z.string().trim().min(1, "ردیف الزامی است."),
+  name: z.string().trim().min(1, "نام کالا الزامی است."),
+  description: z.string().trim().optional().default(""),
+  listPrice: optionalIntField("قیمت کف باید عدد صحیح و غیرمنفی باشد."),
+  finalPrice: optionalIntField("قیمت اعلامی باید عدد صحیح و غیرمنفی باشد."),
+  discountAvailability: z.string().trim().optional().default(""),
+  lastDiscountPercent: optionalPercentField(),
 });
 
 export type ProductInput = z.infer<typeof productSchema>;

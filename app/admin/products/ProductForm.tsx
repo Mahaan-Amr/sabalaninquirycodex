@@ -14,20 +14,30 @@ export function ProductForm({ product, action, error }: ProductFormProps) {
           {error}
         </p>
       ) : null}
-      <label className="grid gap-2 text-sm text-slate-300">
-        نام محصول
-        <input
-          name="name"
-          required
-          defaultValue={product?.name}
-          className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
-        />
-      </label>
+      <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
+        <label className="grid gap-2 text-sm text-slate-300">
+          ردیف
+          <input
+            name="rowNumber"
+            required
+            defaultValue={product?.rowNumber}
+            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+          />
+        </label>
+        <label className="grid gap-2 text-sm text-slate-300">
+          نام کالا
+          <input
+            name="name"
+            required
+            defaultValue={product?.name}
+            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+          />
+        </label>
+      </div>
       <label className="grid gap-2 text-sm text-slate-300">
         توضیحات
         <textarea
           name="description"
-          required
           rows={5}
           defaultValue={product?.description}
           className="rounded-md border border-white/10 bg-slate-950/80 px-3 py-3 leading-7 text-white outline-none focus:border-teal-300"
@@ -35,26 +45,43 @@ export function ProductForm({ product, action, error }: ProductFormProps) {
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm text-slate-300">
-          قیمت لیست، تومان
+          قیمت کف، تومان
           <input
             name="listPrice"
-            type="number"
+            type="text"
             inputMode="numeric"
-            min="0"
-            required
-            defaultValue={product?.listPrice}
+            defaultValue={product?.listPrice ?? ""}
             className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
           />
         </label>
         <label className="grid gap-2 text-sm text-slate-300">
-          قیمت نهایی، تومان
+          قیمت اعلامی، تومان
           <input
             name="finalPrice"
-            type="number"
+            type="text"
             inputMode="numeric"
-            min="0"
-            required
-            defaultValue={product?.finalPrice}
+            defaultValue={product?.finalPrice ?? ""}
+            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+          />
+        </label>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-2 text-sm text-slate-300">
+          امکان تخفیف
+          <input
+            name="discountAvailability"
+            defaultValue={product?.discountAvailability}
+            placeholder="مثلا: دارد یا ندارد"
+            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300 placeholder:text-slate-500"
+          />
+        </label>
+        <label className="grid gap-2 text-sm text-slate-300">
+          اخرین درصد تخفیف
+          <input
+            name="lastDiscountPercent"
+            type="text"
+            inputMode="decimal"
+            defaultValue={product?.lastDiscountPercent ?? ""}
             className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
           />
         </label>

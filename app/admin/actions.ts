@@ -5,14 +5,190 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
+import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth";
-import { createUserSchema, productSchema, updateUserSchema } from "@/lib/validation";
+import {
+  createUserSchema,
+  productSchema,
+  updateUserSchema,
+} from "@/lib/validation";
 
 type ActionState = {
   ok?: boolean;
   message?: string;
 };
+
+type RawImportRow = {
+  rowNumber: string;
+  name: string;
+  description: string;
+  listPrice: string;
+  finalPrice: string;
+  discountAvailability: string;
+  lastDiscountPercent: string;
+  sourceRow: number;
+};
+
+const csvHeaders = [
+  "rowNumber",
+  "name",
+  "description",
+  "listPrice",
+  "finalPrice",
+  "discountAvailability",
+  "lastDiscountPercent",
+];
+
+const excelHeaders = [
+  "ردیف",
+  "نام کالا",
+  "توضیحات",
+  "قیمت اعلامی",
+  "قیمت کف",
+  "امکان تخفیف",
+  "اخرین درصد تخفیف",
+];
+
+function formatCount(value: number) {
+  return value.toLocaleString("fa-IR");
+}
+
+function cellToString(value: unknown) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  return String(value).trim();
+}
+
+function getImportMessage(created: number, updated: number, skipped: number, errors: string[]) {
+  const summary = `${formatCount(created)} محصول ایجاد شد، ${formatCount(updated)} محصول بروزرسانی شد، ${formatCount(skipped)} ردیف رد شد.`;
+  if (!errors.length) {
+    return summary;
+  }
+
+  return `${summary}\nجزئیات ردیف‌های رد شده:\n${errors.slice(0, 10).join("\n")}`;
+}
+
+function parseCsvRows(content: string): RawImportRow[] {
+  const rows = parse(content, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+    bom: true,
+  }) as Record<string, string>[];
+
+  return rows.map((row, index) => ({
+    rowNumber: cellToString(row.rowNumber),
+    name: cellToString(row.name),
+    description: cellToString(row.description),
+    listPrice: cellToString(row.listPrice),
+    finalPrice: cellToString(row.finalPrice),
+    discountAvailability: cellToString(row.discountAvailability),
+    lastDiscountPercent: cellToString(row.lastDiscountPercent),
+    sourceRow: index + 2,
+  }));
+}
+
+function parseExcelRows(buffer: Buffer): RawImportRow[] {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) {
+    return [];
+  }
+
+  const sheet = workbook.Sheets[firstSheetName];
+  const table = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    blankrows: false,
+    defval: "",
+    raw: false,
+  });
+
+  const [headerRow, ...dataRows] = table;
+  const headers = (headerRow ?? []).map((header) => cellToString(header));
+
+  const findColumn = (name: string) => headers.findIndex((header) => header === name);
+  const columns = {
+    rowNumber: findColumn("ردیف"),
+    name: findColumn("نام کالا"),
+    description: findColumn("توضیحات"),
+    finalPrice: findColumn("قیمت اعلامی"),
+    listPrice: findColumn("قیمت کف"),
+    discountAvailability: findColumn("امکان تخفیف"),
+    lastDiscountPercent: findColumn("اخرین درصد تخفیف"),
+  };
+
+  return dataRows
+    .map((row, index) => ({ row, sourceRow: index + 2 }))
+    .filter(({ row }) => row.some((cell) => cellToString(cell) !== ""))
+    .map(({ row, sourceRow }) => ({
+      rowNumber: cellToString(row[columns.rowNumber]),
+      name: cellToString(row[columns.name]),
+      description: cellToString(row[columns.description]),
+      listPrice: cellToString(row[columns.listPrice]),
+      finalPrice: cellToString(row[columns.finalPrice]),
+      discountAvailability: cellToString(row[columns.discountAvailability]),
+      lastDiscountPercent: cellToString(row[columns.lastDiscountPercent]),
+      sourceRow,
+    }));
+}
+
+function validateImportRow(row: RawImportRow, seenRowNumbers: Set<string>) {
+  const parsed = productSchema.safeParse(row);
+  if (!parsed.success) {
+    return {
+      ok: false as const,
+      error: `ردیف ${formatCount(row.sourceRow)}: ${parsed.error.issues[0].message}`,
+    };
+  }
+
+  if (seenRowNumbers.has(parsed.data.rowNumber)) {
+    return {
+      ok: false as const,
+      error: `ردیف ${formatCount(row.sourceRow)}: مقدار ردیف تکراری است.`,
+    };
+  }
+
+  seenRowNumbers.add(parsed.data.rowNumber);
+  return { ok: true as const, data: parsed.data };
+}
+
+async function importProductRows(rows: RawImportRow[]) {
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
+  const seenRowNumbers = new Set<string>();
+
+  for (const row of rows) {
+    const validated = validateImportRow(row, seenRowNumbers);
+    if (!validated.ok) {
+      skipped += 1;
+      errors.push(validated.error);
+      continue;
+    }
+
+    const existing = await prisma.product.findUnique({
+      where: { rowNumber: validated.data.rowNumber },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.product.update({
+        where: { rowNumber: validated.data.rowNumber },
+        data: validated.data,
+      });
+      updated += 1;
+    } else {
+      await prisma.product.create({ data: validated.data });
+      created += 1;
+    }
+  }
+
+  return { created, updated, skipped, errors };
+}
 
 export async function loginAction(
   _state: ActionState,
@@ -39,15 +215,24 @@ export async function logoutAction() {
   redirect("/admin/login");
 }
 
+function redirectProductError(path: string, message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
 export async function createProductAction(formData: FormData) {
   await requireAdmin();
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    redirect(`/admin/products/new?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+    redirectProductError("/admin/products/new", parsed.error.issues[0].message);
   }
 
-  await prisma.product.create({ data: parsed.data });
+  try {
+    await prisma.product.create({ data: parsed.data });
+  } catch {
+    redirectProductError("/admin/products/new", "این ردیف قبلا برای محصول دیگری ثبت شده است.");
+  }
+
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");
@@ -58,12 +243,18 @@ export async function updateProductAction(id: string, formData: FormData) {
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    redirect(
-      `/admin/products/${id}/edit?error=${encodeURIComponent(parsed.error.issues[0].message)}`,
+    redirectProductError(`/admin/products/${id}/edit`, parsed.error.issues[0].message);
+  }
+
+  try {
+    await prisma.product.update({ where: { id }, data: parsed.data });
+  } catch {
+    redirectProductError(
+      `/admin/products/${id}/edit`,
+      "این ردیف قبلا برای محصول دیگری ثبت شده است.",
     );
   }
 
-  await prisma.product.update({ where: { id }, data: parsed.data });
   revalidatePath("/");
   revalidatePath("/admin");
   redirect("/admin");
@@ -145,7 +336,7 @@ export async function deleteUserAction(formData: FormData) {
   }
 }
 
-export async function importCsvAction(
+export async function importProductsAction(
   _state: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
@@ -153,61 +344,36 @@ export async function importCsvAction(
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, message: "لطفا فایل CSV را انتخاب کنید." };
+    return { ok: false, message: "لطفا فایل اکسل یا CSV را انتخاب کنید." };
   }
 
-  const content = await file.text();
-  let rows: Record<string, string>[];
+  let rows: RawImportRow[];
+  const fileName = file.name.toLowerCase();
 
   try {
-    rows = parse(content, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-      bom: true,
-    });
+    if (fileName.endsWith(".xlsx")) {
+      rows = parseExcelRows(Buffer.from(await file.arrayBuffer()));
+    } else if (fileName.endsWith(".csv")) {
+      rows = parseCsvRows(await file.text());
+    } else {
+      return { ok: false, message: "فرمت فایل باید xlsx یا csv باشد." };
+    }
   } catch {
-    return { ok: false, message: "ساختار فایل CSV معتبر نیست." };
+    return { ok: false, message: "ساختار فایل معتبر نیست." };
   }
 
-  let created = 0;
-  let updated = 0;
-  let skipped = 0;
-
-  for (const row of rows) {
-    const parsed = productSchema.safeParse({
-      name: row.name,
-      description: row.description,
-      listPrice: row.listPrice,
-      finalPrice: row.finalPrice,
-    });
-
-    if (!parsed.success) {
-      skipped += 1;
-      continue;
-    }
-
-    const id = row.id?.trim();
-
-    if (id) {
-      const existing = await prisma.product.findUnique({ where: { id } });
-      if (existing) {
-        await prisma.product.update({ where: { id }, data: parsed.data });
-        updated += 1;
-        continue;
-      }
-    }
-
-    await prisma.product.create({ data: parsed.data });
-    created += 1;
+  if (!rows.length) {
+    return { ok: false, message: "فایل انتخاب شده ردیف قابل وارد کردن ندارد." };
   }
+
+  const result = await importProductRows(rows);
 
   revalidatePath("/");
   revalidatePath("/admin");
 
   return {
     ok: true,
-    message: `${created.toLocaleString("fa-IR")} محصول ایجاد شد، ${updated.toLocaleString("fa-IR")} محصول بروزرسانی شد، ${skipped.toLocaleString("fa-IR")} ردیف رد شد.`,
+    message: getImportMessage(result.created, result.updated, result.skipped, result.errors),
   };
 }
 
@@ -219,14 +385,46 @@ export async function exportProductsCsv() {
 
   return stringify(
     products.map((product) => ({
-      id: product.id,
+      rowNumber: product.rowNumber,
       name: product.name,
       description: product.description,
-      listPrice: product.listPrice,
-      finalPrice: product.finalPrice,
-      createdAt: product.createdAt.toISOString(),
-      updatedAt: product.updatedAt.toISOString(),
+      listPrice: product.listPrice ?? "",
+      finalPrice: product.finalPrice ?? "",
+      discountAvailability: product.discountAvailability,
+      lastDiscountPercent: product.lastDiscountPercent ?? "",
     })),
-    { header: true },
+    { columns: csvHeaders, header: true },
   );
+}
+
+export async function exportProductsExcel() {
+  await requireAdmin();
+  const products = await prisma.product.findMany({
+    orderBy: [{ rowNumber: "asc" }, { name: "asc" }],
+  });
+
+  const rows = products.map((product) => [
+    product.rowNumber,
+    product.name,
+    product.description,
+    product.finalPrice ?? "",
+    product.listPrice ?? "",
+    product.discountAvailability,
+    product.lastDiscountPercent ?? "",
+  ]);
+
+  const workbook = XLSX.utils.book_new();
+  const sheet = XLSX.utils.aoa_to_sheet([excelHeaders, ...rows]);
+  sheet["!cols"] = [
+    { wch: 12 },
+    { wch: 24 },
+    { wch: 70 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 18 },
+  ];
+  XLSX.utils.book_append_sheet(workbook, sheet, "Sheet1");
+
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }

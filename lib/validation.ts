@@ -14,3 +14,28 @@ export const productSchema = z.object({
 });
 
 export type ProductInput = z.infer<typeof productSchema>;
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "نام کاربری باید حداقل ۳ کاراکتر باشد.")
+  .max(50, "نام کاربری باید حداکثر ۵۰ کاراکتر باشد.")
+  .regex(/^[A-Za-z0-9._-]+$/, "نام کاربری فقط می‌تواند شامل حروف انگلیسی، عدد، نقطه، زیرخط و خط تیره باشد.");
+
+export const createUserSchema = z.object({
+  username: usernameSchema,
+  password: z.string().min(8, "رمز عبور باید حداقل ۸ کاراکتر باشد."),
+});
+
+export const updateUserSchema = z.object({
+  username: usernameSchema,
+  password: z
+    .string()
+    .transform((value) => value.trim())
+    .refine((value) => value.length === 0 || value.length >= 8, {
+      message: "رمز عبور جدید باید حداقل ۸ کاراکتر باشد.",
+    }),
+});
+
+export type CreateUserInput = z.infer<typeof createUserSchema>;
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

@@ -7,7 +7,7 @@ import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth";
-import { productSchema } from "@/lib/validation";
+import { createUserSchema, productSchema, updateUserSchema } from "@/lib/validation";
 
 type ActionState = {
   ok?: boolean;
@@ -77,6 +77,71 @@ export async function deleteProductAction(formData: FormData) {
     await prisma.product.delete({ where: { id } });
     revalidatePath("/");
     revalidatePath("/admin");
+  }
+}
+
+export async function createUserAction(formData: FormData) {
+  await requireAdmin();
+  const parsed = createUserSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    redirect(`/admin/users/new?error=${encodeURIComponent(parsed.error.issues[0].message)}`);
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+
+  try {
+    await prisma.user.create({
+      data: {
+        username: parsed.data.username,
+        passwordHash,
+      },
+    });
+  } catch {
+    redirect(`/admin/users/new?error=${encodeURIComponent("این نام کاربری قبلا ثبت شده است.")}`);
+  }
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users");
+}
+
+export async function updateUserAction(id: string, formData: FormData) {
+  await requireAdmin();
+  const parsed = updateUserSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    redirect(
+      `/admin/users/${id}/edit?error=${encodeURIComponent(parsed.error.issues[0].message)}`,
+    );
+  }
+
+  const data: { username: string; passwordHash?: string } = {
+    username: parsed.data.username,
+  };
+
+  if (parsed.data.password) {
+    data.passwordHash = await bcrypt.hash(parsed.data.password, 12);
+  }
+
+  try {
+    await prisma.user.update({ where: { id }, data });
+  } catch {
+    redirect(
+      `/admin/users/${id}/edit?error=${encodeURIComponent("این نام کاربری قبلا ثبت شده است.")}`,
+    );
+  }
+
+  revalidatePath("/admin/users");
+  redirect("/admin/users");
+}
+
+export async function deleteUserAction(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+
+  if (id) {
+    await prisma.user.delete({ where: { id } });
+    revalidatePath("/admin/users");
   }
 }
 

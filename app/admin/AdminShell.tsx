@@ -29,6 +29,12 @@ export async function AdminShell({ children }: { children: React.ReactNode }) {
           </Link>
           <Link
             className="rounded-md border border-white/10 px-3 py-2 text-slate-200 hover:border-teal-300"
+            href="/admin/users"
+          >
+            کاربران
+          </Link>
+          <Link
+            className="rounded-md border border-white/10 px-3 py-2 text-slate-200 hover:border-teal-300"
             href="/admin/import"
           >
             CSV

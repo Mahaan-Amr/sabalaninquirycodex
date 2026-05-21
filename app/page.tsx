@@ -1,6 +1,9 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { LogOut, Search } from "lucide-react";
+import { userLogoutAction } from "@/app/actions";
+import { LoginForm } from "@/app/login/LoginForm";
 import { prisma } from "@/lib/prisma";
+import { getUserSession } from "@/lib/auth";
 import { formatPersianDateTime, formatToman, toSafeInt } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +21,37 @@ function getParam(
 }
 
 export default async function Home({ searchParams }: HomeProps) {
+  const session = await getUserSession();
+  const activeUser = session
+    ? await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { id: true },
+      })
+    : null;
+
+  if (!session || !activeUser) {
+    return (
+      <main className="mx-auto grid min-h-screen w-full max-w-md place-items-center px-4 py-8">
+        <section className="w-full rounded-lg border border-white/10 bg-white/[0.04] p-5 shadow-2xl shadow-black/30">
+          <p className="text-sm text-teal-200/80">سامانه استعلام قیمت سبلان</p>
+          <h1 className="mt-2 text-2xl font-bold text-white">ورود به سامانه</h1>
+          <p className="mt-2 text-sm leading-7 text-slate-300">
+            نام کاربری و رمز عبوری را وارد کنید که مدیر برای شما ایجاد کرده است.
+          </p>
+          <div className="mt-6">
+            <LoginForm />
+          </div>
+          <Link
+            href="/admin/login"
+            className="mt-4 inline-block text-sm text-teal-200 hover:text-teal-100"
+          >
+            ورود مدیر
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   const params = await searchParams;
   const query = getParam(params, "q")?.trim() ?? "";
   const minPrice = toSafeInt(getParam(params, "min"));
@@ -59,6 +93,13 @@ export default async function Home({ searchParams }: HomeProps) {
         >
           ورود مدیر
         </Link>
+        <form action={userLogoutAction}>
+          <button className="inline-flex items-center gap-2 rounded-md border border-red-400/20 px-3 py-2 text-sm text-red-100 hover:border-red-300">
+            <span>{session.username}</span>
+            <LogOut className="size-4" />
+            خروج
+          </button>
+        </form>
       </header>
 
       <section className="mb-6 rounded-lg border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">

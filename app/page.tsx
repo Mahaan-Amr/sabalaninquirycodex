@@ -3,6 +3,8 @@ import { Search } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatPersianDateTime, formatToman, toSafeInt } from "@/lib/format";
 
+export const dynamic = "force-dynamic";
+
 type HomeProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };

@@ -5,6 +5,8 @@ import { formatPersianDateTime, formatToman } from "@/lib/format";
 import { deleteProductAction } from "./actions";
 import { AdminShell } from "./AdminShell";
 
+export const dynamic = "force-dynamic";
+
 type AdminPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };

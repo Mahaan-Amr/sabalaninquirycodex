@@ -49,6 +49,7 @@ export async function createProductAction(formData: FormData) {
 
   await prisma.product.create({ data: parsed.data });
   revalidatePath("/");
+  revalidatePath("/admin");
   redirect("/admin");
 }
 
@@ -64,6 +65,7 @@ export async function updateProductAction(id: string, formData: FormData) {
 
   await prisma.product.update({ where: { id }, data: parsed.data });
   revalidatePath("/");
+  revalidatePath("/admin");
   redirect("/admin");
 }
 

@@ -41,15 +41,24 @@ function optionalPercentField() {
   );
 }
 
-export const productSchema = z.object({
-  rowNumber: z.string().trim().min(1, "ردیف الزامی است."),
-  name: z.string().trim().min(1, "نام کالا الزامی است."),
-  description: z.string().trim().optional().default(""),
-  listPrice: optionalIntField("قیمت کف باید عدد صحیح و غیرمنفی باشد."),
-  finalPrice: optionalIntField("قیمت اعلامی باید عدد صحیح و غیرمنفی باشد."),
-  discountAvailability: z.string().trim().optional().default(""),
-  lastDiscountPercent: optionalPercentField(),
-});
+export const productSchema = z
+  .object({
+    rowNumber: z.string().trim().min(1, "ردیف الزامی است."),
+    name: z.string().trim().min(1, "نام کالا الزامی است."),
+    description: z.string().trim().optional().default(""),
+    listPrice: optionalIntField("قیمت کف باید عدد صحیح و غیرمنفی باشد."),
+    finalPrice: optionalIntField("قیمت اعلامی باید عدد صحیح و غیرمنفی باشد."),
+    discountAvailability: z
+      .string()
+      .trim()
+      .transform((value) => value || "ندارد"),
+    lastDiscountPercent: optionalPercentField(),
+  })
+  .transform((product) => ({
+    ...product,
+    lastDiscountPercent:
+      product.discountAvailability === "ندارد" ? null : product.lastDiscountPercent,
+  }));
 
 export type ProductInput = z.infer<typeof productSchema>;
 

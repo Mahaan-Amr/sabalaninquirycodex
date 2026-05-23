@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import {
+  displayDiscountAvailability,
   displayText,
   formatDiscountPercent,
   formatOptionalToman,
@@ -62,8 +63,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <div className="hidden grid-cols-[7rem_1.2fr_1fr_1fr_1fr_auto] gap-4 border-b border-white/10 px-4 py-3 text-sm text-slate-400 xl:grid">
             <span>ردیف</span>
             <span>محصول</span>
-            <span>قیمت کف</span>
             <span>قیمت اعلامی</span>
+            <span>قیمت کف</span>
             <span>تخفیف</span>
             <span>عملیات</span>
           </div>
@@ -81,10 +82,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       {displayText(product.description)}
                     </p>
                     <div className="mt-2 grid gap-1 text-xs text-slate-500 xl:hidden">
-                      <span>قیمت کف: {formatOptionalToman(product.listPrice)}</span>
                       <span>قیمت اعلامی: {formatOptionalToman(product.finalPrice)}</span>
+                      <span>قیمت کف: {formatOptionalToman(product.listPrice)}</span>
                       <span>
-                        امکان تخفیف: {displayText(product.discountAvailability)} / اخرین درصد:{" "}
+                        امکان تخفیف: {displayDiscountAvailability(product.discountAvailability)} / اخرین درصد:{" "}
                         {formatDiscountPercent(product.lastDiscountPercent)}
                       </span>
                       <time dateTime={product.updatedAt.toISOString()}>
@@ -92,14 +93,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                       </time>
                     </div>
                   </div>
-                  <div className="hidden text-sm text-slate-200 xl:block">
-                    {formatOptionalToman(product.listPrice)}
-                  </div>
                   <div className="hidden text-sm font-semibold text-teal-100 xl:block">
                     {formatOptionalToman(product.finalPrice)}
                   </div>
+                  <div className="hidden text-sm text-slate-200 xl:block">
+                    {formatOptionalToman(product.listPrice)}
+                  </div>
                   <div className="hidden grid gap-1 text-xs text-slate-400 xl:grid">
-                    <span>امکان: {displayText(product.discountAvailability)}</span>
+                    <span>امکان: {displayDiscountAvailability(product.discountAvailability)}</span>
                     <span>درصد: {formatDiscountPercent(product.lastDiscountPercent)}</span>
                     <time dateTime={product.updatedAt.toISOString()}>
                       ویرایش: {formatPersianDateTime(product.updatedAt)}

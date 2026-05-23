@@ -1,12 +1,34 @@
-import type { Product } from "@prisma/client";
+"use client";
+
+import { useState } from "react";
+import { PriceInput } from "@/app/components/PriceInput";
+
+export type ProductFormValue = {
+  rowNumber: string;
+  name: string;
+  description: string;
+  listPrice: number | null;
+  finalPrice: number | null;
+  discountAvailability: string;
+  lastDiscountPercent: number | null;
+};
 
 type ProductFormProps = {
-  product?: Product;
+  product?: ProductFormValue;
+  defaultRowNumber?: string;
   action: (formData: FormData) => Promise<void>;
   error?: string;
 };
 
-export function ProductForm({ product, action, error }: ProductFormProps) {
+const inputClass =
+  "h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300 disabled:cursor-not-allowed disabled:opacity-60";
+
+export function ProductForm({ product, defaultRowNumber, action, error }: ProductFormProps) {
+  const initialDiscount =
+    product?.discountAvailability === "دارد" ? "دارد" : "ندارد";
+  const [discountAvailability, setDiscountAvailability] = useState(initialDiscount);
+  const discountEnabled = discountAvailability === "دارد";
+
   return (
     <form action={action} className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
       {error ? (
@@ -20,8 +42,8 @@ export function ProductForm({ product, action, error }: ProductFormProps) {
           <input
             name="rowNumber"
             required
-            defaultValue={product?.rowNumber}
-            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+            defaultValue={product?.rowNumber ?? defaultRowNumber ?? ""}
+            className={inputClass}
           />
         </label>
         <label className="grid gap-2 text-sm text-slate-300">
@@ -30,7 +52,7 @@ export function ProductForm({ product, action, error }: ProductFormProps) {
             name="name"
             required
             defaultValue={product?.name}
-            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+            className={inputClass}
           />
         </label>
       </div>
@@ -45,44 +67,51 @@ export function ProductForm({ product, action, error }: ProductFormProps) {
       </label>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm text-slate-300">
-          قیمت کف، تومان
-          <input
-            name="listPrice"
-            type="text"
-            inputMode="numeric"
-            defaultValue={product?.listPrice ?? ""}
-            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+          قیمت اعلامی، تومان
+          <PriceInput
+            name="finalPrice"
+            defaultValue={product?.finalPrice}
+            className={inputClass}
           />
         </label>
         <label className="grid gap-2 text-sm text-slate-300">
-          قیمت اعلامی، تومان
-          <input
-            name="finalPrice"
-            type="text"
-            inputMode="numeric"
-            defaultValue={product?.finalPrice ?? ""}
-            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+          قیمت کف، تومان
+          <PriceInput
+            name="listPrice"
+            defaultValue={product?.listPrice}
+            className={inputClass}
           />
         </label>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="grid gap-2 text-sm text-slate-300">
-          امکان تخفیف
-          <input
-            name="discountAvailability"
-            defaultValue={product?.discountAvailability}
-            placeholder="مثلا: دارد یا ندارد"
-            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300 placeholder:text-slate-500"
-          />
-        </label>
+        <fieldset className="grid gap-2 text-sm text-slate-300">
+          <legend>امکان تخفیف</legend>
+          <input type="hidden" name="discountAvailability" value={discountAvailability} />
+          <div className="grid h-12 grid-cols-2 overflow-hidden rounded-md border border-white/10 bg-slate-950/80">
+            {(["ندارد", "دارد"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setDiscountAvailability(option)}
+                className={
+                  discountAvailability === option
+                    ? "bg-teal-400 font-semibold text-slate-950"
+                    : "text-slate-300 hover:bg-white/[0.04]"
+                }
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <label className="grid gap-2 text-sm text-slate-300">
           اخرین درصد تخفیف
-          <input
+          <PriceInput
             name="lastDiscountPercent"
-            type="text"
-            inputMode="decimal"
-            defaultValue={product?.lastDiscountPercent ?? ""}
-            className="h-12 rounded-md border border-white/10 bg-slate-950/80 px-3 text-white outline-none focus:border-teal-300"
+            defaultValue={discountEnabled ? product?.lastDiscountPercent : ""}
+            className={inputClass}
+            decimal
+            disabled={!discountEnabled}
           />
         </label>
       </div>

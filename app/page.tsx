@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { LogOut, Search } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { userLogoutAction } from "@/app/actions";
+import { PublicSearchForm } from "@/app/components/PublicSearchForm";
 import { LoginForm } from "@/app/login/LoginForm";
 import { prisma } from "@/lib/prisma";
 import { getUserSession } from "@/lib/auth";
 import {
-  displayText,
+  displayDiscountAvailability,
   formatDiscountPercent,
   formatOptionalToman,
   formatPersianDateTime,
@@ -86,11 +87,11 @@ export default async function Home({ searchParams }: HomeProps) {
   const hasFilters = query || minPrice !== undefined || maxPrice !== undefined;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+      <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-teal-200/80">سامانه استعلام قیمت</p>
-          <h1 className="mt-2 text-2xl font-bold text-white sm:text-4xl">
+          <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
             استعلام قیمت سبلان
           </h1>
         </div>
@@ -111,40 +112,12 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </header>
 
-      <section className="mb-6 rounded-lg border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
-        <form className="grid gap-3 sm:grid-cols-[1fr_10rem_10rem_auto]">
-          <label className="relative block">
-            <span className="sr-only">جستجوی محصول</span>
-            <Search className="pointer-events-none absolute right-3 top-1/2 size-5 -translate-y-1/2 text-slate-400" />
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="ردیف، نام یا توضیحات محصول را جستجو کنید..."
-              className="h-12 w-full rounded-md border border-white/10 bg-slate-950/70 pr-10 pl-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300"
-            />
-          </label>
-          <input
-            name="min"
-            inputMode="numeric"
-            defaultValue={minPrice ?? ""}
-            placeholder="حداقل تومان"
-            className="h-12 rounded-md border border-white/10 bg-slate-950/70 px-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300"
-          />
-          <input
-            name="max"
-            inputMode="numeric"
-            defaultValue={maxPrice ?? ""}
-            placeholder="حداکثر تومان"
-            className="h-12 rounded-md border border-white/10 bg-slate-950/70 px-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300"
-          />
-          <button className="h-12 rounded-md bg-teal-400 px-5 font-semibold text-slate-950 transition hover:bg-teal-300">
-            جستجو
-          </button>
-        </form>
+      <section className="mb-4 rounded-lg border border-white/10 bg-white/[0.04] p-3 shadow-2xl shadow-black/20">
+        <PublicSearchForm query={query} minPrice={minPrice} maxPrice={maxPrice} />
       </section>
 
       <section className="flex-1">
-        <div className="mb-4 flex items-center justify-between gap-3 text-sm text-slate-300">
+        <div className="mb-3 flex items-center justify-between gap-3 text-sm text-slate-300">
           <span>
             {hasFilters
               ? `${products.length.toLocaleString("fa-IR")} نتیجه پیدا شد`
@@ -158,60 +131,62 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
 
         {products.length > 0 ? (
-          <div className="grid gap-3">
+          <div className="grid gap-2">
             {products.map((product) => (
               <article
                 key={product.id}
-                className="rounded-lg border border-white/10 bg-slate-950/55 p-4"
+                className="rounded-lg border border-white/10 bg-slate-950/55 px-4 py-3"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-teal-100">ردیف {product.rowNumber}</p>
-                    <h2 className="mt-1 text-lg font-bold text-white">{product.name}</h2>
-                  </div>
-                  <div className="text-sm text-slate-300">
-                    امکان تخفیف: {displayText(product.discountAvailability)}
+                    <h2 className="mt-1 text-base font-bold leading-7 text-white sm:text-lg">
+                      {product.name}
+                    </h2>
                   </div>
                 </div>
+
                 {product.description ? (
-                  <p className="mt-2 whitespace-pre-line text-sm leading-7 text-slate-300">
+                  <p className="mt-1 whitespace-pre-line text-sm leading-7 text-slate-300">
                     {product.description}
                   </p>
                 ) : null}
-                <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
-                  <div className="rounded-md bg-white/[0.04] p-3">
-                    <span className="block text-slate-400">قیمت کف</span>
-                    <strong className="mt-1 block text-slate-100">
-                      {formatOptionalToman(product.listPrice)}
-                    </strong>
-                  </div>
-                  <div className="rounded-md bg-teal-400/10 p-3">
-                    <span className="block text-teal-100/80">قیمت اعلامی</span>
-                    <strong className="mt-1 block text-teal-100">
+
+                <dl className="mt-2 grid gap-1 text-sm leading-7 text-slate-300">
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-400">قیمت اعلامی:</dt>
+                    <dd className="font-semibold text-teal-100">
                       {formatOptionalToman(product.finalPrice)}
-                    </strong>
+                    </dd>
                   </div>
-                  <div className="rounded-md bg-white/[0.04] p-3">
-                    <span className="block text-slate-400">اخرین درصد تخفیف</span>
-                    <strong className="mt-1 block text-slate-100">
-                      {formatDiscountPercent(product.lastDiscountPercent)}
-                    </strong>
+                  <div className="flex items-center justify-between gap-3">
+                    <dt className="text-slate-400">قیمت کف:</dt>
+                    <dd className="font-semibold text-slate-100">
+                      {formatOptionalToman(product.listPrice)}
+                    </dd>
                   </div>
-                </div>
-                <div className="mt-3 grid gap-2 text-xs text-slate-400 sm:grid-cols-2">
-                  <p>
-                    <span className="text-slate-500">تاریخ ایجاد: </span>
-                    <time dateTime={product.createdAt.toISOString()}>
-                      {formatPersianDateTime(product.createdAt)}
-                    </time>
-                  </p>
-                  <p>
-                    <span className="text-slate-500">آخرین ویرایش: </span>
-                    <time dateTime={product.updatedAt.toISOString()}>
-                      {formatPersianDateTime(product.updatedAt)}
-                    </time>
-                  </p>
-                </div>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-300">
+                    <span>
+                      <span className="text-slate-400">امکان تخفیف: </span>
+                      <strong className="text-slate-100">
+                        {displayDiscountAvailability(product.discountAvailability)}
+                      </strong>
+                    </span>
+                    <span>
+                      <span className="text-slate-400">درصد تخفیف: </span>
+                      <strong className="text-slate-100">
+                        {formatDiscountPercent(product.lastDiscountPercent)}
+                      </strong>
+                    </span>
+                  </div>
+                </dl>
+
+                <p className="mt-2 text-xs text-slate-400">
+                  <span className="text-slate-500">آخرین ویرایش: </span>
+                  <time dateTime={product.updatedAt.toISOString()}>
+                    {formatPersianDateTime(product.updatedAt)}
+                  </time>
+                </p>
               </article>
             ))}
           </div>

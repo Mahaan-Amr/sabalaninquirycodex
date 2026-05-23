@@ -1,4 +1,5 @@
 const persianNumberFormatter = new Intl.NumberFormat("fa-IR");
+const inputNumberFormatter = new Intl.NumberFormat("en-US");
 
 const persianDateTimeFormatter = new Intl.DateTimeFormat("fa-IR", {
   dateStyle: "medium",
@@ -23,6 +24,11 @@ export function displayText(value: string | null | undefined) {
   return trimmed || "-";
 }
 
+export function displayDiscountAvailability(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || "ندارد";
+}
+
 export function formatPersianDateTime(value: Date) {
   return persianDateTimeFormatter.format(value);
 }
@@ -34,6 +40,23 @@ export function normalizeNumericText(value: string) {
     .replace(/[٬,]/g, "")
     .replace(/٫/g, ".")
     .trim();
+}
+
+export function formatInputNumber(value: string | number | null | undefined) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  const normalized = normalizeNumericText(String(value));
+  const [integerPart, decimalPart] = normalized.split(".");
+  const parsed = Number.parseInt(integerPart, 10);
+  if (!Number.isFinite(parsed)) {
+    return "";
+  }
+
+  return decimalPart === undefined
+    ? inputNumberFormatter.format(parsed)
+    : `${inputNumberFormatter.format(parsed)}.${decimalPart}`;
 }
 
 export function toSafeInt(value: FormDataEntryValue | string | null | undefined) {

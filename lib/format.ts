@@ -42,6 +42,10 @@ export function normalizeNumericText(value: string) {
     .trim();
 }
 
+export function normalizePercentText(value: string) {
+  return normalizeNumericText(value).replace(/[٪%]/g, "").trim();
+}
+
 export function formatInputNumber(value: string | number | null | undefined) {
   if (value === null || value === undefined || value === "") {
     return "";

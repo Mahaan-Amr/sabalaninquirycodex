@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { normalizeNumericText } from "@/lib/format";
+import { normalizeNumericText, normalizePercentText } from "@/lib/format";
 
 function emptyToNull(value: unknown) {
   return typeof value === "string" && value.trim() === "" ? null : value;
@@ -31,7 +31,7 @@ function optionalPercentField() {
         return null;
       }
 
-      return typeof normalized === "string" ? normalizeNumericText(normalized) : normalized;
+      return typeof normalized === "string" ? normalizePercentText(normalized) : normalized;
     },
     z.coerce
       .number({ message: "درصد تخفیف باید عددی بین ۰ تا ۱۰۰ باشد." })
@@ -41,8 +41,22 @@ function optionalPercentField() {
   );
 }
 
-export const productSchema = z
-  .object({
+export const productSchema = z.preprocess(
+  (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return value;
+    }
+
+    const product = value as Record<string, unknown>;
+    const discountAvailability = String(product.discountAvailability ?? "").trim();
+
+    if (discountAvailability === "" || discountAvailability === "ندارد") {
+      return { ...product, lastDiscountPercent: "" };
+    }
+
+    return value;
+  },
+  z.object({
     rowNumber: z.string().trim().min(1, "ردیف الزامی است."),
     name: z.string().trim().min(1, "نام کالا الزامی است."),
     description: z.string().trim().optional().default(""),
@@ -58,7 +72,8 @@ export const productSchema = z
     ...product,
     lastDiscountPercent:
       product.discountAvailability === "ندارد" ? null : product.lastDiscountPercent,
-  }));
+  })),
+);
 
 export type ProductInput = z.infer<typeof productSchema>;
 

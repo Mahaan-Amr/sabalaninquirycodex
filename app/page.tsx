@@ -5,6 +5,7 @@ import { PublicSearchForm } from "@/app/components/PublicSearchForm";
 import { LoginForm } from "@/app/login/LoginForm";
 import { prisma } from "@/lib/prisma";
 import { getUserSession } from "@/lib/auth";
+import { filterProductsBySearch } from "@/lib/productSearch";
 import {
   displayDiscountAvailability,
   formatDiscountPercent,
@@ -64,25 +65,17 @@ export default async function Home({ searchParams }: HomeProps) {
   const minPrice = toSafeInt(getParam(params, "min"));
   const maxPrice = toSafeInt(getParam(params, "max"));
 
-  const products = await prisma.product.findMany({
+  const productCandidates = await prisma.product.findMany({
     where: {
       AND: [
-        query
-          ? {
-              OR: [
-                { rowNumber: { contains: query } },
-                { name: { contains: query } },
-                { description: { contains: query } },
-              ],
-            }
-          : {},
         minPrice !== undefined ? { finalPrice: { gte: minPrice } } : {},
         maxPrice !== undefined ? { finalPrice: { lte: maxPrice } } : {},
       ],
     },
     orderBy: [{ rowNumber: "asc" }, { name: "asc" }],
-    take: 50,
+    take: query ? undefined : 50,
   });
+  const products = filterProductsBySearch(productCandidates, query).slice(0, 50);
 
   const hasFilters = query || minPrice !== undefined || maxPrice !== undefined;
 

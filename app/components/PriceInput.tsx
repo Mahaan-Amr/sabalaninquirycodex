@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatInputNumber, normalizeNumericText } from "@/lib/format";
 
 type PriceInputProps = {
@@ -10,6 +10,7 @@ type PriceInputProps = {
   className?: string;
   disabled?: boolean;
   decimal?: boolean;
+  onValueChange?: (value: string) => void;
 };
 
 function cleanValue(value: string, decimal: boolean) {
@@ -32,12 +33,24 @@ export function PriceInput({
   className,
   disabled,
   decimal = false,
+  onValueChange,
 }: PriceInputProps) {
   const initialValue = useMemo(
     () => cleanValue(String(defaultValue ?? ""), decimal),
     [defaultValue, decimal],
   );
   const [rawValue, setRawValue] = useState(initialValue);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setRawValue(initialValue), 0);
+    return () => window.clearTimeout(timeout);
+  }, [initialValue]);
+
+  function handleChange(value: string) {
+    const cleaned = cleanValue(value, decimal);
+    setRawValue(cleaned);
+    onValueChange?.(cleaned);
+  }
 
   return (
     <>
@@ -48,7 +61,7 @@ export function PriceInput({
         value={disabled ? "" : formatInputNumber(rawValue)}
         placeholder={placeholder}
         disabled={disabled}
-        onChange={(event) => setRawValue(cleanValue(event.target.value, decimal))}
+        onChange={(event) => handleChange(event.target.value)}
         className={className}
       />
     </>

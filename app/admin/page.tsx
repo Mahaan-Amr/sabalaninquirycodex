@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { filterProductsBySearch } from "@/lib/productSearch";
 import {
   displayDiscountAvailability,
   displayText,
@@ -22,18 +23,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const qValue = params.q;
   const query = (Array.isArray(qValue) ? qValue[0] : qValue)?.trim() ?? "";
 
-  const products = await prisma.product.findMany({
-    where: query
-      ? {
-          OR: [
-            { rowNumber: { contains: query } },
-            { name: { contains: query } },
-            { description: { contains: query } },
-          ],
-        }
-      : undefined,
+  const productCandidates = await prisma.product.findMany({
     orderBy: [{ updatedAt: "desc" }, { name: "asc" }],
   });
+  const products = filterProductsBySearch(productCandidates, query);
 
   return (
     <AdminShell>

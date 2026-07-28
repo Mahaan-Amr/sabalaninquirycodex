@@ -8,6 +8,7 @@ import { stringify } from "csv-stringify/sync";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession, requireAdmin } from "@/lib/auth";
+import { assertInquiryWritable } from "@/lib/recovery";
 import {
   createUserSchema,
   productSchema,
@@ -221,6 +222,7 @@ function redirectProductError(path: string, message: string): never {
 
 export async function createProductAction(formData: FormData) {
   await requireAdmin();
+  assertInquiryWritable();
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
@@ -240,6 +242,7 @@ export async function createProductAction(formData: FormData) {
 
 export async function updateProductAction(id: string, formData: FormData) {
   await requireAdmin();
+  assertInquiryWritable();
   const parsed = productSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
@@ -262,6 +265,7 @@ export async function updateProductAction(id: string, formData: FormData) {
 
 export async function deleteProductAction(formData: FormData) {
   await requireAdmin();
+  assertInquiryWritable();
   const id = String(formData.get("id") ?? "");
 
   if (id) {
@@ -273,6 +277,7 @@ export async function deleteProductAction(formData: FormData) {
 
 export async function createUserAction(formData: FormData) {
   await requireAdmin();
+  assertInquiryWritable();
   const parsed = createUserSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
@@ -298,6 +303,7 @@ export async function createUserAction(formData: FormData) {
 
 export async function updateUserAction(id: string, formData: FormData) {
   await requireAdmin();
+  assertInquiryWritable();
   const parsed = updateUserSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
@@ -328,6 +334,7 @@ export async function updateUserAction(id: string, formData: FormData) {
 
 export async function deleteUserAction(formData: FormData) {
   await requireAdmin();
+  assertInquiryWritable();
   const id = String(formData.get("id") ?? "");
 
   if (id) {
@@ -341,6 +348,7 @@ export async function importProductsAction(
   formData: FormData,
 ): Promise<ActionState> {
   await requireAdmin();
+  assertInquiryWritable();
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {

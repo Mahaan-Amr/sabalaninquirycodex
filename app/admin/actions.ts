@@ -207,7 +207,7 @@ export async function loginAction(
     return { ok: false, message: "اطلاعات ورود درست نیست." };
   }
 
-  await createSession({ adminId: admin.id, email: admin.email });
+  await createSession({ adminId: admin.id, email: admin.email }, admin.passwordHash);
   redirect("/admin");
 }
 

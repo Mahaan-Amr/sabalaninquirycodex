@@ -26,7 +26,7 @@ export async function userLoginAction(
     return { ok: false, message: "نام کاربری یا رمز عبور درست نیست." };
   }
 
-  await createUserSession({ userId: user.id, username: user.username });
+  await createUserSession({ userId: user.id, username: user.username }, user.passwordHash);
   redirect("/");
 }
 
